@@ -27,8 +27,8 @@ class AdapTestDataset(Dataset):
                          num_students, num_questions, num_concepts)
 
         # initialize tested and untested set
-        self.tested = None
-        self.untested = None
+        self._tested = None
+        self._untested = None
         self.reset()
 
     def apply_selection(self, student_idx, question_idx):
@@ -38,27 +38,27 @@ class AdapTestDataset(Dataset):
             student_idx: int
             question_idx: int
         """
-        assert question_idx in self.untested[student_idx], \
+        assert question_idx in self._untested[student_idx], \
             'Selected question not allowed'
-        self.untested[student_idx].remove(question_idx)
-        self.tested[student_idx].append(question_idx)
+        self._untested[student_idx].remove(question_idx)
+        self._tested[student_idx].append(question_idx)
 
     def reset(self):
         """ 
         Set tested set empty
         """
-        self.tested = defaultdict(deque)
-        self.untested = defaultdict(set)
+        self._tested = defaultdict(deque)
+        self._untested = defaultdict(set)
         for sid in self.data:
-            self.untested[sid] = set(self.data[sid].keys())
+            self._untested[sid] = set(self.data[sid].keys())
 
     @property
     def tested(self):
-        return self.tested
+        return self._tested
 
     @property
     def untested(self):
-        return self.untested
+        return self._untested
 
     def get_tested_dataset(self, last=False):
         """
@@ -69,7 +69,7 @@ class AdapTestDataset(Dataset):
             TrainDataset
         """
         triplets = []
-        for sid, qids in self.tested.items():
+        for sid, qids in self._tested.items():
             if last:
                 qid = qids[-1]
                 triplets.append((sid, qid, self.data[sid][qid]))

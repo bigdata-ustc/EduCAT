@@ -1,10 +1,10 @@
 from abc import ABC, abstractmethod
 try:
     # for python module
-    from ..dataset import AdapTestDataset, TrainDataset, _Dataset
+    from ..dataset import AdapTestDataset, TrainDataset, Dataset
 except (ImportError, SystemError):  # pragma: no cover
     # for python script
-    from dataset import AdapTestDataset, TrainDataset, _Dataset
+    from dataset import AdapTestDataset, TrainDataset, Dataset
 
 
 class AbstractModel(ABC):
@@ -23,7 +23,7 @@ class AbstractModel(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def init_model(self, data: _Dataset):
+    def init_model(self, data: Dataset):
         raise NotImplementedError
 
     @abstractmethod
