@@ -25,8 +25,7 @@ class TrainDataset(Dataset, data.dataset.Dataset):
 
     def __getitem__(self, item):
         sid, qid, score = self.raw_data[item]
-        concepts = self.concept_map[qid]
-        return sid, qid, score, concepts
+        return sid, qid, score
 
     def __len__(self):
         return len(self.raw_data)

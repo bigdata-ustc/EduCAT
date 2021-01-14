@@ -13,18 +13,18 @@ class Dataset(object):
             num_questions: int, total question number
             num_concepts: int, total concept number
         """
-        self.raw_data = data
-        self.concept_map = concept_map
+        self._raw_data = data
+        self._concept_map = concept_map
         self.n_students = num_students
         self.n_questions = num_questions
         self.n_concepts = num_concepts
         
         # reorganize datasets
-        self.data = {}
+        self._data = {}
         for sid, qid, correct in data:
-            self.data.setdefault(sid, {})
-            self.data[sid].setdefault(qid, {})
-            self.data[sid][qid] = correct
+            self._data.setdefault(sid, {})
+            self._data[sid].setdefault(qid, {})
+            self._data[sid][qid] = correct
 
         student_ids = set(x[0] for x in data)
         question_ids = set(x[1] for x in data)
@@ -51,12 +51,12 @@ class Dataset(object):
 
     @property
     def raw_data(self):
-        return self.raw_data
+        return self._raw_data
 
     @property
     def data(self):
-        return self.data
+        return self._data
 
     @property
     def concept_map(self):
-        return self.concept_map
+        return self._concept_map

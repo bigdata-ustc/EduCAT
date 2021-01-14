@@ -1,7 +1,15 @@
 import numpy as np
-from .abstract_strategy import AbstractStrategy
-from ..model import AbstractModel
-from ..dataset import AdapTestDataset
+
+try:
+    # for python module
+    from .abstract_strategy import AbstractStrategy
+    from ..model import AbstractModel
+    from ..dataset import AdapTestDataset
+except (ImportError, SystemError):  # pragma: no cover
+    # for python script
+    from abstract_strategy import AbstractStrategy
+    from model import AbstractModel
+    from dataset import AdapTestDataset
 
 
 class RandomStrategy(AbstractStrategy):
@@ -17,5 +25,5 @@ class RandomStrategy(AbstractStrategy):
         selection = {}
         for sid in range(adaptest_data.num_students):
             untested_questions = np.array(list(adaptest_data.untested[sid]))
-            selection[sid] = np.random.randint(len(untested_questions))
+            selection[sid] = untested_questions[np.random.randint(len(untested_questions))]
         return selection

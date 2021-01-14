@@ -11,11 +11,11 @@ from sklearn.metrics import roc_auc_score
 try:
     # for python module
     from .abstract_model import AbstractModel
-    from ..dataset import AdapTestDataset, TrainDataset, _Dataset
+    from ..dataset import AdapTestDataset, TrainDataset, Dataset
 except (ImportError, SystemError):  # pragma: no cover
     # for python script
     from abstract_model import AbstractModel
-    from dataset import AdapTestDataset, TrainDataset, _Dataset
+    from dataset import AdapTestDataset, TrainDataset, Dataset
 
 
 class IRT(nn.Module):
@@ -57,7 +57,7 @@ class IRTModel(AbstractModel):
     def name(self):
         return 'Item Response Theory'
 
-    def init_model(self, data: _Dataset):
+    def init_model(self, data: Dataset):
         self.model = IRT(data.num_students, data.num_questions, self.config['num_dim'])
     
     def train(self, train_data: TrainDataset):
@@ -74,7 +74,7 @@ class IRTModel(AbstractModel):
         for ep in range(1, epochs + 1):
             loss = 0.0
             log_step = 1
-            for cnt, (student_ids, question_ids, labels, _) in enumerate(train_loader):
+            for cnt, (student_ids, question_ids, labels) in enumerate(train_loader):
                 student_ids = student_ids.to(device)
                 question_ids = question_ids.to(device)
                 labels = labels.to(device).float()
@@ -83,7 +83,7 @@ class IRTModel(AbstractModel):
                 optimizer.zero_grad()
                 bz_loss.backward()
                 optimizer.step()
-                loss += bz_loss.item()
+                loss += bz_loss.data.float()
                 if cnt % log_step == 0:
                     logging.info('Epoch [{}] Batch [{}]: loss={:.5f}'.format(ep, cnt, loss / cnt))
 
@@ -118,16 +118,16 @@ class IRTModel(AbstractModel):
         for ep in range(1, epochs + 1):
             loss = 0.0
             log_steps = 100
-            for cnt, (student_ids, question_ids, correctness, _) in enumerate(dataloader):
+            for cnt, (student_ids, question_ids, labels) in enumerate(dataloader):
                 student_ids = student_ids.to(device)
                 question_ids = question_ids.to(device)
-                correctness = correctness.to(device).float()
+                labels = labels.to(device).float()
                 pred = self.model(student_ids, question_ids).view(-1)
-                bz_loss = self._loss_function(pred, correctness)
+                bz_loss = self._loss_function(pred, labels)
                 optimizer.zero_grad()
                 bz_loss.backward()
                 optimizer.step()
-                loss += bz_loss.item()
+                loss += bz_loss.data.float()
                 if cnt % log_steps == 0:
                     print('Epoch [{}] Batch [{}]: loss={:.3f}'.format(ep, cnt, loss / cnt))
     
