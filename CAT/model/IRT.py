@@ -6,16 +6,11 @@ import torch
 import torch.nn as nn
 import numpy as np
 import torch.utils.data as data
+from math import exp as exp
 from sklearn.metrics import roc_auc_score
 
-try:
-    # for python module
-    from .abstract_model import AbstractModel
-    from ..dataset import AdapTestDataset, TrainDataset, Dataset
-except (ImportError, SystemError):  # pragma: no cover
-    # for python script
-    from abstract_model import AbstractModel
-    from dataset import AdapTestDataset, TrainDataset, Dataset
+from CAT.model.abstract_model import AbstractModel
+from CAT.dataset import AdapTestDataset, TrainDataset, Dataset
 
 
 class IRT(nn.Module):
@@ -40,10 +35,6 @@ class IRT(nn.Module):
         pred = (alpha * theta).sum(dim=1, keepdim=True) + beta
         pred = torch.sigmoid(pred)
         return pred
-
-    def get_knowledge_status(self, stu_ids):
-        stu_emb = self.theta(stu_ids)
-        return stu_emb.data
 
 
 class IRTModel(AbstractModel):
@@ -182,3 +173,19 @@ class IRTModel(AbstractModel):
     
     def get_theta(self, student_id):
         return self.model.theta.weight.data.numpy()[student_id]
+
+    def get_iif(self, student_id, question_id):
+        device = self.config['device']
+        sid = torch.LongTensor([student_id]).to(device)
+        qid = torch.LongTensor([question_id]).to(device)
+        theta = self.model.theta(sid).clone().detach().requires_grad_(True)
+        alpha = self.model.alpha(qid).clone().detach()
+        beta = self.model.beta(qid).clone().detach()
+        pred = (alpha * theta).sum(dim=1, keepdim=True) + beta
+        pred = torch.sigmoid(pred)
+        pred.backward()
+        pred = pred.data.numpy()[0][0]
+        grad = theta.grad.data.numpy()[0][0]
+        return grad ** 2 / (pred * (1 - pred))
+
+

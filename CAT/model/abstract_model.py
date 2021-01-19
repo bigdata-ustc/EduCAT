@@ -1,10 +1,5 @@
 from abc import ABC, abstractmethod
-try:
-    # for python module
-    from ..dataset import AdapTestDataset, TrainDataset, Dataset
-except (ImportError, SystemError):  # pragma: no cover
-    # for python script
-    from dataset import AdapTestDataset, TrainDataset, Dataset
+from CAT.dataset import AdapTestDataset, TrainDataset, Dataset
 
 
 class AbstractModel(ABC):
