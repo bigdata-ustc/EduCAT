@@ -1,15 +1,8 @@
 import numpy as np
 
-try:
-    # for python module
-    from .abstract_strategy import AbstractStrategy
-    from ..model import AbstractModel
-    from ..dataset import AdapTestDataset
-except (ImportError, SystemError):  # pragma: no cover
-    # for python script
-    from abstract_strategy import AbstractStrategy
-    from model import AbstractModel
-    from dataset import AdapTestDataset
+from CAT.strategy.abstract_strategy import AbstractStrategy
+from CAT.model import AbstractModel
+from CAT.dataset import AdapTestDataset
 
 
 class RandomStrategy(AbstractStrategy):
