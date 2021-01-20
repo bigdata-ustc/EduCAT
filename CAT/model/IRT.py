@@ -8,6 +8,7 @@ import numpy as np
 import torch.utils.data as data
 from math import exp as exp
 from sklearn.metrics import roc_auc_score
+from scipy import integrate
 
 from CAT.model.abstract_model import AbstractModel
 from CAT.dataset import AdapTestDataset, TrainDataset, Dataset
@@ -119,8 +120,8 @@ class IRTModel(AbstractModel):
                 bz_loss.backward()
                 optimizer.step()
                 loss += bz_loss.data.float()
-                if cnt % log_steps == 0:
-                    print('Epoch [{}] Batch [{}]: loss={:.3f}'.format(ep, cnt, loss / cnt))
+                # if cnt % log_steps == 0:
+                    # print('Epoch [{}] Batch [{}]: loss={:.3f}'.format(ep, cnt, loss / cnt))
     
     def evaluate(self, adaptest_data: AdapTestDataset):
         data = adaptest_data.data
@@ -187,5 +188,29 @@ class IRTModel(AbstractModel):
         pred = pred.data.numpy()[0][0]
         grad = theta.grad.data.numpy()[0][0]
         return grad ** 2 / (pred * (1 - pred))
+    
+    def kli(self, x, student_id, question_id, alpha, beta, pred_estimate):
+        pred = alpha * x + beta
+        pred = 1 / (1 + np.exp(-pred))
+        q_estimate = 1  - pred_estimate
+        q = 1 - pred
+        return pred_estimate * np.log(pred_estimate / pred) + q_estimate * np.log((q_estimate / q))
+    
+    def get_kli(self, student_id, question_id, n):
+        device = self.config['device']
+        sid = torch.LongTensor([student_id]).to(device)
+        qid = torch.LongTensor([question_id]).to(device)
+        theta = self.model.theta(sid).clone().detach().numpy()[0][0]
+        alpha = self.model.alpha(qid).clone().detach().numpy()[0][0]
+        beta = self.model.beta(qid).clone().detach().numpy()[0][0]
+        pred_estimate = alpha * theta + beta
+        pred_estimate = 1 / (1 + np.exp(-pred_estimate))
+        c = 3
+        low = theta - c / np.sqrt(n)
+        high = theta + c / np.sqrt(n)
+        v, err = integrate.quad(self.kli, low, high, args=(sid, qid, alpha, beta, pred_estimate))
+        return v
+
+        
 
 

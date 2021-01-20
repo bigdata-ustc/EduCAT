@@ -6,24 +6,26 @@ from CAT.model import AbstractModel
 from CAT.dataset import AdapTestDataset
 
 
-class MFIStrategy(AbstractStrategy):
+class KLIStrategy(AbstractStrategy):
 
     def __init__(self):
         super().__init__()
 
     @property
     def name(self):
-        return 'Maximum Fisher Information Strategy'
+        return 'KL Information Strategy'
 
     def adaptest_select(self, model: AbstractModel, adaptest_data: AdapTestDataset):
-        assert hasattr(model, 'get_iif'), \
-            'the models must implement get_iif method'
+        assert hasattr(model, 'get_kli'), \
+            'the models must implement get_kli method'
         selection = {}
+        n = len(adaptest_data.tested[0])
         for sid in range(adaptest_data.num_students):
+            theta = model.get_theta(sid)
             untested_questions = np.array(list(adaptest_data.untested[sid]))
-            untested_iif = []
+            untested_kli = []
             for qid in untested_questions:
-                untested_iif.append(model.get_iif(sid, qid))
-            j = np.argmax(untested_iif)
+                untested_kli.append(model.get_kli(sid, qid, n))
+            j = np.argmax(untested_kli)
             selection[sid] = untested_questions[j]
         return selection
