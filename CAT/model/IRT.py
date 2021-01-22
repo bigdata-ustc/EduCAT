@@ -167,29 +167,42 @@ class IRTModel(AbstractModel):
         return -(real * torch.log(0.0001 + pred) + (1 - real) * torch.log(1.0001 - pred)).mean()
     
     def get_alpha(self, question_id):
+        """ get alpha of one question
+        Args:
+            question_id: int, question id
+        Returns:
+            alpha of the given question
+        """
         return self.model.alpha.weight.data.numpy()[question_id]
     
     def get_beta(self, question_id):
+        """ get beta of one question
+        Args:
+            question_id: int, question id
+        Returns:
+            beta of the given question
+        """
         return self.model.beta.weight.data.numpy()[question_id]
     
     def get_theta(self, student_id):
+        """ get theta of one student
+        Args:
+            student_id: int, student id
+        Returns:
+            theta of the given student
+        """
         return self.model.theta.weight.data.numpy()[student_id]
-
-    def get_iif(self, student_id, question_id):
-        device = self.config['device']
-        sid = torch.LongTensor([student_id]).to(device)
-        qid = torch.LongTensor([question_id]).to(device)
-        theta = self.model.theta(sid).clone().detach().requires_grad_(True)
-        alpha = self.model.alpha(qid).clone().detach()
-        beta = self.model.beta(qid).clone().detach()
-        pred = (alpha * theta).sum(dim=1, keepdim=True) + beta
-        pred = torch.sigmoid(pred)
-        pred.backward()
-        pred = pred.data.numpy()[0][0]
-        grad = theta.grad.data.numpy()[0][0]
-        return grad ** 2 / (pred * (1 - pred))
     
-    def kli(self, x, student_id, question_id, alpha, beta, pred_estimate):
+    def kli(self, x, alpha, beta, pred_estimate):
+        """ The formula of KL information. Used for integral.
+        Args:
+            x: theta of student sid
+            alpha: alpha of question qid
+            beta: beta of question qid
+            pred_estimate: the estimated probability of student sid
+        Returns:
+            the formula with x
+        """
         pred = alpha * x + beta
         pred = 1 / (1 + np.exp(-pred))
         q_estimate = 1  - pred_estimate
@@ -197,6 +210,14 @@ class IRTModel(AbstractModel):
         return pred_estimate * np.log(pred_estimate / pred) + q_estimate * np.log((q_estimate / q))
     
     def get_kli(self, student_id, question_id, n):
+        """ get KL information
+        Args:
+            student_id: int, student id
+            question_id: int, question id
+            n: int, the number of iteration
+        Returns:
+            v: float, KL information
+        """
         device = self.config['device']
         sid = torch.LongTensor([student_id]).to(device)
         qid = torch.LongTensor([question_id]).to(device)
@@ -208,9 +229,25 @@ class IRTModel(AbstractModel):
         c = 3
         low = theta - c / np.sqrt(n)
         high = theta + c / np.sqrt(n)
-        v, err = integrate.quad(self.kli, low, high, args=(sid, qid, alpha, beta, pred_estimate))
+        v, err = integrate.quad(self.kli, low, high, args=(alpha, beta, pred_estimate))
         return v
 
+    def get_fisher(self, student_id, question_id):
+        """ get Fisher information
+        Args:
+            student_id: int, student id
+            question_id: int, question id
+        Returns:
+            fisher_info: matrix(num_dim * num_dim), Fisher information
+        """
+        device = self.config['device']
+        sid = torch.LongTensor([student_id]).to(device)
+        qid = torch.LongTensor([question_id]).to(device)
+        alpha = self.model.alpha(qid).clone().detach()
+        pred = self.model(sid, qid).data
+        q = 1 - pred
+        fisher_info = (q*pred*(alpha * alpha.T)).numpy()
+        return fisher_info
         
 
 
