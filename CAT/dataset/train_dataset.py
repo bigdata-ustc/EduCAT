@@ -1,3 +1,4 @@
+import torch
 from torch.utils import data
 
 try:
@@ -25,7 +26,11 @@ class TrainDataset(Dataset, data.dataset.Dataset):
 
     def __getitem__(self, item):
         sid, qid, score = self.raw_data[item]
-        return sid, qid, score
+        concepts = self.concept_map[qid]
+        concepts_emb = [0.] * self.num_concepts
+        for concept in concepts:
+            concepts_emb[concept] = 1.0
+        return sid, qid, torch.Tensor(concepts_emb), score
 
     def __len__(self):
         return len(self.raw_data)

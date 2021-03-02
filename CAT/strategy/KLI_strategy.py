@@ -1,5 +1,4 @@
 import numpy as np
-import torch
 
 from CAT.strategy.abstract_strategy import AbstractStrategy
 from CAT.model import AbstractModel
@@ -23,9 +22,7 @@ class KLIStrategy(AbstractStrategy):
         for sid in range(adaptest_data.num_students):
             theta = model.get_theta(sid)
             untested_questions = np.array(list(adaptest_data.untested[sid]))
-            untested_kli = []
-            for qid in untested_questions:
-                untested_kli.append(model.get_kli(sid, qid, n))
+            untested_kli = [model.get_kli(sid, qid, n) for qid in untested_questions]
             j = np.argmax(untested_kli)
             selection[sid] = untested_questions[j]
         return selection

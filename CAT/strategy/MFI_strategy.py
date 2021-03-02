@@ -1,5 +1,4 @@
 import numpy as np
-import torch
 
 from CAT.strategy.abstract_strategy import AbstractStrategy
 from CAT.model import AbstractModel

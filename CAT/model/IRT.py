@@ -66,7 +66,7 @@ class IRTModel(AbstractModel):
         for ep in range(1, epochs + 1):
             loss = 0.0
             log_step = 1
-            for cnt, (student_ids, question_ids, labels) in enumerate(train_loader):
+            for cnt, (student_ids, question_ids, _, labels) in enumerate(train_loader):
                 student_ids = student_ids.to(device)
                 question_ids = question_ids.to(device)
                 labels = labels.to(device).float()
@@ -110,7 +110,7 @@ class IRTModel(AbstractModel):
         for ep in range(1, epochs + 1):
             loss = 0.0
             log_steps = 100
-            for cnt, (student_ids, question_ids, labels) in enumerate(dataloader):
+            for cnt, (student_ids, question_ids, _, labels) in enumerate(dataloader):
                 student_ids = student_ids.to(device)
                 question_ids = question_ids.to(device)
                 labels = labels.to(device).float()
@@ -221,11 +221,11 @@ class IRTModel(AbstractModel):
         device = self.config['device']
         sid = torch.LongTensor([student_id]).to(device)
         qid = torch.LongTensor([question_id]).to(device)
-        theta = self.model.theta(sid).clone().detach().numpy()[0][0]
-        alpha = self.model.alpha(qid).clone().detach().numpy()[0][0]
-        beta = self.model.beta(qid).clone().detach().numpy()[0][0]
-        pred_estimate = alpha * theta + beta
-        pred_estimate = 1 / (1 + np.exp(-pred_estimate))
+        theta = self.model.theta(sid).clone().detach().numpy()[0] # (10, )
+        alpha = self.model.alpha(qid).clone().detach().numpy()[0] # (10, )
+        beta = self.model.beta(qid).clone().detach().numpy()[0][0] # float value
+        # pred_estimate = 1 / (1 + np.exp(-np.dot(alpha, theta.T) - beta))
+        pred_estimate = self.model(sid, qid).data.numpy()[0][0] # float value
         c = 3
         low = theta - c / np.sqrt(n)
         high = theta + c / np.sqrt(n)
@@ -248,6 +248,51 @@ class IRTModel(AbstractModel):
         q = 1 - pred
         fisher_info = (q*pred*(alpha * alpha.T)).numpy()
         return fisher_info
+    
+    def expected_model_change(self, sid: int, qid: int, adaptest_data: AdapTestDataset):
+
+        epochs = self.config['num_epochs']
+        lr = self.config['learning_rate']
+        device = self.config['device']
+        optimizer = torch.optim.Adam(self.model.parameters(), lr=lr)
+
+        for name, param in self.model.named_parameters():
+            if 'theta' not in name:
+                param.requires_grad = False
+
+        original_weights = self.model.theta.weight.data.clone()
+
+        student_id = torch.LongTensor([sid]).to(device)
+        question_id = torch.LongTensor([qid]).to(device)
+        correct = torch.LongTensor([1]).to(device).float()
+        wrong = torch.LongTensor([0]).to(device).float()
+
+        for ep in range(epochs):
+            optimizer.zero_grad()
+            pred = self.model(student_id, question_id)
+            loss = self._loss_function(pred, correct)
+            loss.backward()
+            optimizer.step()
+
+        pos_weights = self.model.theta.weight.data.clone()
+        self.model.theta.weight.data.copy_(original_weights)
+
+        for ep in range(epochs):
+            optimizer.zero_grad()
+            pred = self.model(student_id, question_id)
+            loss = self._loss_function(pred, wrong)
+            loss.backward()
+            optimizer.step()
+
+        neg_weights = self.model.theta.weight.data.clone()
+        self.model.theta.weight.data.copy_(original_weights)
+
+        for param in self.model.parameters():
+            param.requires_grad = True
+
+        pred = self.model(student_id, question_id).item()
+        return pred * torch.norm(pos_weights - original_weights).item() + \
+               (1 - pred) * torch.norm(neg_weights - original_weights).item()
         
 
 
