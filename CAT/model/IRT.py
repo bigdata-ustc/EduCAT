@@ -1,6 +1,7 @@
 import os
 import time
 import copy
+import vegas
 import logging
 import torch
 import torch.nn as nn
@@ -192,23 +193,7 @@ class IRTModel(AbstractModel):
             theta of the given student
         """
         return self.model.theta.weight.data.numpy()[student_id]
-    
-    def kli(self, x, alpha, beta, pred_estimate):
-        """ The formula of KL information. Used for integral.
-        Args:
-            x: theta of student sid
-            alpha: alpha of question qid
-            beta: beta of question qid
-            pred_estimate: the estimated probability of student sid
-        Returns:
-            the formula with x
-        """
-        pred = alpha * x + beta
-        pred = 1 / (1 + np.exp(-pred))
-        q_estimate = 1  - pred_estimate
-        q = 1 - pred
-        return pred_estimate * np.log(pred_estimate / pred) + q_estimate * np.log((q_estimate / q))
-    
+
     def get_kli(self, student_id, question_id, n):
         """ get KL information
         Args:
@@ -218,19 +203,32 @@ class IRTModel(AbstractModel):
         Returns:
             v: float, KL information
         """
+        if n == 0:
+            return np.inf
         device = self.config['device']
+        dim = self.model.num_dim
         sid = torch.LongTensor([student_id]).to(device)
         qid = torch.LongTensor([question_id]).to(device)
-        theta = self.model.theta(sid).clone().detach().numpy()[0] # (10, )
-        alpha = self.model.alpha(qid).clone().detach().numpy()[0] # (10, )
+        theta = self.model.theta(sid).clone().detach().numpy()[0] # (num_dim, )
+        alpha = self.model.alpha(qid).clone().detach().numpy()[0] # (num_dim, )
         beta = self.model.beta(qid).clone().detach().numpy()[0][0] # float value
-        # pred_estimate = 1 / (1 + np.exp(-np.dot(alpha, theta.T) - beta))
         pred_estimate = self.model(sid, qid).data.numpy()[0][0] # float value
+        def kli(x):
+            """ The formula of KL information. Used for integral.
+            Args:
+                x: theta of student sid
+            """
+            pred = np.matmul(alpha.T, x) + beta
+            pred = 1 / (1 + np.exp(-pred))
+            q_estimate = 1  - pred_estimate
+            q = 1 - pred
+            return pred_estimate * np.log(pred_estimate / pred) + \
+                    q_estimate * np.log((q_estimate / q))
         c = 3
-        low = theta - c / np.sqrt(n)
-        high = theta + c / np.sqrt(n)
-        v, err = integrate.quad(self.kli, low, high, args=(alpha, beta, pred_estimate))
-        return v
+        boundaries = [[theta[i] - c / np.sqrt(n), theta[i] + c / np.sqrt(n)] for i in range(dim)]
+        integ = vegas.Integrator(boundaries)
+        result = integ(kli, nitn=10, neval=1000)
+        return result.mean
 
     def get_fisher(self, student_id, question_id):
         """ get Fisher information
@@ -250,7 +248,13 @@ class IRTModel(AbstractModel):
         return fisher_info
     
     def expected_model_change(self, sid: int, qid: int, adaptest_data: AdapTestDataset):
-
+        """ get expected model change
+        Args:
+            student_id: int, student id
+            question_id: int, question id
+        Returns:
+            float, expected model change
+        """
         epochs = self.config['num_epochs']
         lr = self.config['learning_rate']
         device = self.config['device']
