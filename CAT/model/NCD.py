@@ -93,7 +93,7 @@ class NCDModel(AbstractModel):
 
     @property
     def name(self):
-        return 'NeuralCD Model'
+        return 'Neural Cognitive Diagnosis'
 
     def init_model(self, data: Dataset):
         self.model = NCD(data.num_students, data.num_questions, data.num_concepts)
@@ -135,7 +135,7 @@ class NCDModel(AbstractModel):
     
     def adaptest_save(self, path):
         """
-        Save the model. Only save the parameters of questions(alpha, beta)
+        Save the model. Do not save the parameters for students.
         """
         model_dict = self.model.state_dict()
         model_dict = {k:v for k,v in model_dict.items() if 'student' not in k}
@@ -224,7 +224,13 @@ class NCDModel(AbstractModel):
         }
     
     def expected_model_change(self, sid: int, qid: int, adaptest_data: AdapTestDataset):
-
+        """ get expected model change
+        Args:
+            student_id: int, student id
+            question_id: int, question id
+        Returns:
+            float, expected model change
+        """
         epochs = self.config['num_epochs']
         lr = self.config['learning_rate']
         device = self.config['device']
@@ -252,7 +258,6 @@ class NCDModel(AbstractModel):
             loss = self._loss_function(pred, correct)
             loss.backward()
             optimizer.step()
-            # self.model.apply_clipper()
 
         pos_weights = self.model.student_emb.weight.data.clone()
         self.model.student_emb.weight.data.copy_(original_weights)
@@ -263,7 +268,6 @@ class NCDModel(AbstractModel):
             loss = self._loss_function(pred, wrong)
             loss.backward()
             optimizer.step()
-            # self.model.apply_clipper()
 
         neg_weights = self.model.student_emb.weight.data.clone()
         self.model.student_emb.weight.data.copy_(original_weights)
