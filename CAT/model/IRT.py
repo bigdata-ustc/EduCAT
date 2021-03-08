@@ -9,7 +9,6 @@ import numpy as np
 import torch.utils.data as data
 from math import exp as exp
 from sklearn.metrics import roc_auc_score
-from scipy import integrate
 
 from CAT.model.abstract_model import AbstractModel
 from CAT.dataset import AdapTestDataset, TrainDataset, Dataset
