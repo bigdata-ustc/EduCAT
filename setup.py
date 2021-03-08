@@ -1,19 +1,21 @@
-from setuptools import setup
-
-test_deps = [
-    'pytest>=4',
-    'pytest-cov>=2.6.0',
-    'pytest-flake8',
-]
+from setuptools import setup, find_packages
 
 setup(
     name='CAT',
     version='0.0.1',
-    extras_require={
-        'test': test_deps,
-    },
+    author='nnnyt',
+    author_email='ningyt@mail.ustc.edu.cn',
+    packages=find_packages(),
+    url='https://github.com/bigdata-ustc/CAT',
     install_requires=[
+        'torch',
+        'vegas',
+        'numpy',
+        'scikit-learn',
     ],  # And any other dependencies foo needs
     entry_points={
     },
+    classifiers=[
+        "Programming Language :: Python :: 3",
+    ]
 )
