@@ -13,13 +13,13 @@ class NCD(nn.Module):
     '''
     NeuralCDM
     '''
-    def __init__(self, student_n, exer_n, knowledge_n):
+    def __init__(self, student_n, exer_n, knowledge_n, prednet_len1=128, prednet_len2=64):
         self.knowledge_dim = knowledge_n
         self.exer_n = exer_n
         self.emb_num = student_n
         self.stu_dim = self.knowledge_dim
         self.prednet_input_len = self.knowledge_dim
-        self.prednet_len1, self.prednet_len2 = 512, 256  # changeable
+        self.prednet_len1, self.prednet_len2 = prednet_len1, prednet_len2  # changeable
 
         super(NCD, self).__init__()
 
@@ -96,7 +96,7 @@ class NCDModel(AbstractModel):
         return 'Neural Cognitive Diagnosis'
 
     def init_model(self, data: Dataset):
-        self.model = NCD(data.num_students, data.num_questions, data.num_concepts)
+        self.model = NCD(data.num_students, data.num_questions, data.num_concepts, self.config['prednet_len1'], self.config['prednet_len2'])
     
     def train(self, train_data: TrainDataset):
         lr = self.config['learning_rate']
