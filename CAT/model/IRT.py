@@ -53,7 +53,7 @@ class IRTModel(AbstractModel):
     def init_model(self, data: Dataset):
         self.model = IRT(data.num_students, data.num_questions, self.config['num_dim'])
     
-    def train(self, train_data: TrainDataset):
+    def train(self, train_data: TrainDataset, log_step=1):
         lr = self.config['learning_rate']
         batch_size = self.config['batch_size']
         epochs = self.config['num_epochs']
@@ -66,7 +66,6 @@ class IRTModel(AbstractModel):
 
         for ep in range(1, epochs + 1):
             loss = 0.0
-            log_step = 1
             for cnt, (student_ids, question_ids, _, labels) in enumerate(train_loader):
                 student_ids = student_ids.to(device)
                 question_ids = question_ids.to(device)
