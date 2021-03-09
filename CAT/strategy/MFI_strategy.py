@@ -38,3 +38,11 @@ class MFIStrategy(AbstractStrategy):
             selection[sid] = untested_questions[j]
             self.I[sid] += untested_fisher[j]
         return selection
+    
+class DoptStrategy(MFIStrategy):
+    def __init__(self):
+        super().__init__()
+    
+    @property
+    def name(self):
+        return 'D-Optimality Strategy'

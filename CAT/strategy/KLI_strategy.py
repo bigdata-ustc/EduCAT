@@ -12,7 +12,7 @@ class KLIStrategy(AbstractStrategy):
 
     @property
     def name(self):
-        return 'KL Information Strategy'
+        return 'Kullback-Leibler Information Strategy'
 
     def adaptest_select(self, model: AbstractModel, adaptest_data: AdapTestDataset):
         assert hasattr(model, 'get_kli'), \
@@ -26,3 +26,12 @@ class KLIStrategy(AbstractStrategy):
             j = np.argmax(untested_kli)
             selection[sid] = untested_questions[j]
         return selection
+
+class MKLIStrategy(KLIStrategy):
+
+    def __init__(self):
+        super().__init__()
+    
+    @property
+    def name(self):
+        return 'Multivariate Kullback-Leibler Information Strategy'
