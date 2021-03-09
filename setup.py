@@ -12,6 +12,7 @@ setup(
         'vegas',
         'numpy',
         'scikit-learn',
+        'scipy',
     ],  # And any other dependencies foo needs
     entry_points={
     },
