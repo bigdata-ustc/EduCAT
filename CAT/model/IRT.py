@@ -9,6 +9,7 @@ import numpy as np
 import torch.utils.data as data
 from math import exp as exp
 from sklearn.metrics import roc_auc_score
+from scipy import integrate
 
 from CAT.model.abstract_model import AbstractModel
 from CAT.dataset import AdapTestDataset, TrainDataset, Dataset
@@ -217,6 +218,8 @@ class IRTModel(AbstractModel):
             Args:
                 x: theta of student sid
             """
+            if type(x) == float:
+                x = np.array([x])
             pred = np.matmul(alpha.T, x) + beta
             pred = 1 / (1 + np.exp(-pred))
             q_estimate = 1  - pred_estimate
@@ -225,6 +228,9 @@ class IRTModel(AbstractModel):
                     q_estimate * np.log((q_estimate / q))
         c = 3
         boundaries = [[theta[i] - c / np.sqrt(n), theta[i] + c / np.sqrt(n)] for i in range(dim)]
+        if len(boundaries) == 1:
+            v, err = integrate.quad(kli, boundaries[0][0], boundaries[0][1])
+            return v
         integ = vegas.Integrator(boundaries)
         result = integ(kli, nitn=10, neval=1000)
         return result.mean
