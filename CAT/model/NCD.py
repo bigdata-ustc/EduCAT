@@ -165,6 +165,7 @@ class NCDModel(AbstractModel):
                 student_ids = student_ids.to(device)
                 question_ids = question_ids.to(device)
                 labels = labels.to(device)
+                concepts_emb = concepts_emb.to(device)
                 pred = self.model(student_ids, question_ids, concepts_emb)
                 bz_loss = self._loss_function(pred, labels)
                 optimizer.zero_grad()
@@ -223,7 +224,35 @@ class NCDModel(AbstractModel):
             'cov': cov,
         }
     
-    def expected_model_change(self, sid: int, qid: int, adaptest_data: AdapTestDataset):
+    def get_pred(self, adaptest_data: AdapTestDataset):
+        data = adaptest_data.data
+        concept_map = adaptest_data.concept_map
+        device = self.config['device']
+
+        pred_all = {}
+        with torch.no_grad():
+            self.model.eval()
+            for sid in data:
+                pred_all[sid] = {}
+                student_ids = [sid] * len(data[sid])
+                question_ids = list(data[sid].keys())
+                concepts_embs = []
+                for qid in question_ids:
+                    concepts = concept_map[qid]
+                    concepts_emb = [0.] * adaptest_data.num_concepts
+                    for concept in concepts:
+                        concepts_emb[concept] = 1.0
+                    concepts_embs.append(concepts_emb)
+                student_ids = torch.LongTensor(student_ids).to(device)
+                question_ids = torch.LongTensor(question_ids).to(device)
+                concepts_embs = torch.Tensor(concepts_embs).to(device)
+                output = self.model(student_ids, question_ids, concepts_embs).view(-1).tolist()
+                for i, qid in enumerate(list(data[sid].keys())):
+                    pred_all[sid][qid] = output[i]
+            self.model.train()
+        return pred_all
+
+    def expected_model_change(self, sid: int, qid: int, adaptest_data: AdapTestDataset, pred_all: dict):
         """ get expected model change
         Args:
             student_id: int, student id
@@ -275,6 +304,7 @@ class NCDModel(AbstractModel):
         for param in self.model.parameters():
             param.requires_grad = True
 
-        pred = self.model(student_id, question_id, concepts_emb).item()
+        # pred = self.model(student_id, question_id, concepts_emb).item()
+        pred = pred_all[sid][qid]
         return pred * torch.norm(pos_weights - original_weights).item() + \
                (1 - pred) * torch.norm(neg_weights - original_weights).item()

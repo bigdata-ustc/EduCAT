@@ -17,12 +17,15 @@ class KLIStrategy(AbstractStrategy):
     def adaptest_select(self, model: AbstractModel, adaptest_data: AdapTestDataset):
         assert hasattr(model, 'get_kli'), \
             'the models must implement get_kli method'
+        assert hasattr(model, 'get_pred'), \
+            'the models must implement get_pred method for accelerating'
+        pred_all = model.get_pred(adaptest_data)
         selection = {}
         n = len(adaptest_data.tested[0])
         for sid in range(adaptest_data.num_students):
             theta = model.get_theta(sid)
             untested_questions = np.array(list(adaptest_data.untested[sid]))
-            untested_kli = [model.get_kli(sid, qid, n) for qid in untested_questions]
+            untested_kli = [model.get_kli(sid, qid, n, pred_all) for qid in untested_questions]
             j = np.argmax(untested_kli)
             selection[sid] = untested_questions[j]
         return selection

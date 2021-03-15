@@ -22,6 +22,9 @@ class MFIStrategy(AbstractStrategy):
     def adaptest_select(self, model: AbstractModel, adaptest_data: AdapTestDataset):
         assert hasattr(model, 'get_fisher'), \
             'the models must implement get_fisher method'
+        assert hasattr(model, 'get_pred'), \
+            'the models must implement get_pred method for accelerating'
+        pred_all = model.get_pred(adaptest_data)
         if self.I is None:
             self.I = [np.zeros((model.model.num_dim, model.model.num_dim))] * adaptest_data.num_students    
         selection = {}
@@ -31,7 +34,7 @@ class MFIStrategy(AbstractStrategy):
             untested_dets = []
             untested_fisher = []
             for qid in untested_questions:
-                fisher_info = model.get_fisher(sid, qid)
+                fisher_info = model.get_fisher(sid, qid, pred_all)
                 untested_fisher.append(fisher_info)
                 untested_dets.append(np.linalg.det(self.I[sid] + fisher_info))
             j = np.argmax(untested_dets)
