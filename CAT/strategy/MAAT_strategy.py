@@ -29,10 +29,11 @@ class MAATStrategy(AbstractStrategy):
     def adaptest_select(self, model: AbstractModel, adaptest_data: AdapTestDataset):
         assert hasattr(model, 'expected_model_change'), \
             'the models must implement expected_model_change method'
+        pred_all = model.get_pred(adaptest_data)
         selection = {}
         for sid in range(adaptest_data.num_students):
             untested_questions = np.array(list(adaptest_data.untested[sid]))
-            emc_arr = [model.expected_model_change(sid, qid, adaptest_data) for qid in untested_questions]
+            emc_arr = [model.expected_model_change(sid, qid, adaptest_data, pred_all) for qid in untested_questions]
             candidates = untested_questions[np.argsort(emc_arr)[::-1][:self.n_candidates]]
             selection[sid] = max(candidates, key=lambda qid: self._compute_coverage_gain(sid, qid, adaptest_data))
         return selection

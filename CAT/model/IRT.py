@@ -163,6 +163,32 @@ class IRTModel(AbstractModel):
             'cov': cov,
         }
 
+    def get_pred(self, adaptest_data: AdapTestDataset):
+        """
+        Returns:
+            predictions, dict[sid][qid]
+        """
+        data = adaptest_data.data
+        concept_map = adaptest_data.concept_map
+        device = self.config['device']
+
+        pred_all = {}
+
+        with torch.no_grad():
+            self.model.eval()
+            for sid in data:
+                pred_all[sid] = {}
+                student_ids = [sid] * len(data[sid])
+                question_ids = list(data[sid].keys())
+                student_ids = torch.LongTensor(student_ids).to(device)
+                question_ids = torch.LongTensor(question_ids).to(device)
+                output = self.model(student_ids, question_ids).view(-1).tolist()
+                for i, qid in enumerate(list(data[sid].keys())):
+                    pred_all[sid][qid] = output[i]
+            self.model.train()
+
+        return pred_all
+
     def _loss_function(self, pred, real):
         return -(real * torch.log(0.0001 + pred) + (1 - real) * torch.log(1.0001 - pred)).mean()
     
@@ -171,29 +197,29 @@ class IRTModel(AbstractModel):
         Args:
             question_id: int, question id
         Returns:
-            alpha of the given question
+            alpha of the given question, shape (num_dim, )
         """
-        return self.model.alpha.weight.data.numpy()[question_id]
+        return self.model.alpha.weight.data.cpu().numpy()[question_id]
     
     def get_beta(self, question_id):
         """ get beta of one question
         Args:
             question_id: int, question id
         Returns:
-            beta of the given question
+            beta of the given question, shape (1, )
         """
-        return self.model.beta.weight.data.numpy()[question_id]
+        return self.model.beta.weight.data.cpu().numpy()[question_id]
     
     def get_theta(self, student_id):
         """ get theta of one student
         Args:
             student_id: int, student id
         Returns:
-            theta of the given student
+            theta of the given student, shape (num_dim, )
         """
-        return self.model.theta.weight.data.numpy()[student_id]
+        return self.model.theta.weight.data.cpu().numpy()[student_id]
 
-    def get_kli(self, student_id, question_id, n):
+    def get_kli(self, student_id, question_id, n, pred_all):
         """ get KL information
         Args:
             student_id: int, student id
@@ -208,10 +234,10 @@ class IRTModel(AbstractModel):
         dim = self.model.num_dim
         sid = torch.LongTensor([student_id]).to(device)
         qid = torch.LongTensor([question_id]).to(device)
-        theta = self.model.theta(sid).clone().detach().numpy()[0] # (num_dim, )
-        alpha = self.model.alpha(qid).clone().detach().numpy()[0] # (num_dim, )
-        beta = self.model.beta(qid).clone().detach().numpy()[0][0] # float value
-        pred_estimate = self.model(sid, qid).data.numpy()[0][0] # float value
+        theta = self.get_theta(sid) # (num_dim, )
+        alpha = self.get_alpha(qid) # (num_dim, )
+        beta = self.get_beta(qid)[0] # float value
+        pred_estimate = pred_all[student_id][question_id]
         def kli(x):
             """ The formula of KL information. Used for integral.
             Args:
@@ -228,13 +254,15 @@ class IRTModel(AbstractModel):
         c = 3
         boundaries = [[theta[i] - c / np.sqrt(n), theta[i] + c / np.sqrt(n)] for i in range(dim)]
         if len(boundaries) == 1:
+            # KLI
             v, err = integrate.quad(kli, boundaries[0][0], boundaries[0][1])
             return v
+        # MKLI
         integ = vegas.Integrator(boundaries)
         result = integ(kli, nitn=10, neval=1000)
         return result.mean
 
-    def get_fisher(self, student_id, question_id):
+    def get_fisher(self, student_id, question_id, pred_all):
         """ get Fisher information
         Args:
             student_id: int, student id
@@ -243,15 +271,14 @@ class IRTModel(AbstractModel):
             fisher_info: matrix(num_dim * num_dim), Fisher information
         """
         device = self.config['device']
-        sid = torch.LongTensor([student_id]).to(device)
         qid = torch.LongTensor([question_id]).to(device)
-        alpha = self.model.alpha(qid).clone().detach()
-        pred = self.model(sid, qid).data
+        alpha = self.model.alpha(qid).clone().detach().cpu()
+        pred = pred_all[student_id][question_id]
         q = 1 - pred
         fisher_info = (q*pred*(alpha * alpha.T)).numpy()
         return fisher_info
     
-    def expected_model_change(self, sid: int, qid: int, adaptest_data: AdapTestDataset):
+    def expected_model_change(self, sid: int, qid: int, adaptest_data: AdapTestDataset, pred_all: dict):
         """ get expected model change
         Args:
             student_id: int, student id
@@ -298,7 +325,7 @@ class IRTModel(AbstractModel):
         for param in self.model.parameters():
             param.requires_grad = True
 
-        pred = self.model(student_id, question_id).item()
+        pred = pred_all[sid][qid]
         return pred * torch.norm(pos_weights - original_weights).item() + \
                (1 - pred) * torch.norm(neg_weights - original_weights).item()
         
