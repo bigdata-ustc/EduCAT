@@ -26,7 +26,7 @@ class MFIStrategy(AbstractStrategy):
             'the models must implement get_pred method for accelerating'
         pred_all = model.get_pred(adaptest_data)
         if self.I is None:
-            self.I = [np.zeros((model.model.num_dim, model.model.num_dim))] * adaptest_data.num_students    
+            self.I = [np.zeros((model.model.num_dim, model.model.num_dim)) for _ in range(adaptest_data.num_students)]
         selection = {}
         n = len(adaptest_data.tested[0])
         for sid in range(adaptest_data.num_students):
@@ -41,11 +41,11 @@ class MFIStrategy(AbstractStrategy):
             selection[sid] = untested_questions[j]
             self.I[sid] += untested_fisher[j]
         return selection
-    
+
 class DoptStrategy(MFIStrategy):
     def __init__(self):
         super().__init__()
-    
+
     @property
     def name(self):
         return 'D-Optimality Strategy'

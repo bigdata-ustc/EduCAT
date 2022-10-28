@@ -34,7 +34,7 @@ class MKLIStrategy(KLIStrategy):
 
     def __init__(self):
         super().__init__()
-    
+
     @property
     def name(self):
         return 'Multivariate Kullback-Leibler Information Strategy'
