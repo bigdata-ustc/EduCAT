@@ -6,5 +6,4 @@ from .KLI_strategy import KLIStrategy
 from .KLI_strategy import MKLIStrategy
 from .MAAT_strategy import MAATStrategy
 from .BECAT_strategy import BECATstrategy
-from .graph_stratgy import Grstrategy
 
