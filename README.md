@@ -5,7 +5,7 @@ Computerized Adaptive Testing Package, including the following models and strate
   * MaximumFisherInformation (MFI) strategy
   * Kullback-Leibler Information (KLI) strategy
   * Model-Agnostic Adaptive Testing (MAAT) strategy
-  * Bounded Ability Estimation Adaptive Testing (BECAT) strategy
+  * Bounded Ability Estimation Adaptive Testing (BECAT) strategy 
 * Multidimensional Item Response Theory (MIRT)
   * D-Optimality (D-opt) strategy
   * Multivariate Kullback-Leibler Information (MKLI) strategy
@@ -13,7 +13,10 @@ Computerized Adaptive Testing Package, including the following models and strate
   * Bounded Ability Estimation Adaptive Testing (BECAT) strategy
 * Neural Cognitive Diagnosis (NCD)
   * Model-Agnostic Adaptive Testing (MAAT) strategy
-  * Bounded Ability Estimation Adaptive Testing (BECAT) strategy
+  * Bounded Ability Estimation Adaptive Testing (BECAT) strategy 
+  
+BECAT strategy comes from paper A Bounded Ability Estimation for Computerized Adaptive Testing(https://nips.cc/virtual/2023/poster/70224)
+
 ## Installation
 
 Git and install by `pip`
