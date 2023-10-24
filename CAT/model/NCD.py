@@ -3,8 +3,8 @@ import logging
 import numpy as np
 import torch.nn as nn
 import torch.utils.data as data
-from sklearn.metrics import roc_auc_score
-
+from sklearn.metrics import roc_auc_score,accuracy_score
+import math
 from CAT.model.abstract_model import AbstractModel
 from CAT.dataset import AdapTestDataset, TrainDataset, Dataset
 
@@ -216,12 +216,19 @@ class NCDModel(AbstractModel):
         cov = sum(coverages) / len(coverages)
 
         real = np.array(real)
+        real = np.where(real < 0.5, 0.0, 1.0)
         pred = np.array(pred)
         auc = roc_auc_score(real, pred)
+        
+        # Calculate accuracy
+        threshold = 0.5  # You may adjust the threshold based on your use case
+        binary_pred = (pred >= threshold).astype(int)
+        acc = accuracy_score(real, binary_pred)
 
         return {
             'auc': auc,
             'cov': cov,
+            'acc': acc
         }
     
     def get_pred(self, adaptest_data: AdapTestDataset):
@@ -308,3 +315,87 @@ class NCDModel(AbstractModel):
         pred = pred_all[sid][qid]
         return pred * torch.norm(pos_weights - original_weights).item() + \
                (1 - pred) * torch.norm(neg_weights - original_weights).item()
+               
+    def get_BE_weights(self, pred_all):
+        """
+        Returns:
+            predictions, dict[sid][qid]
+        """
+        d = 100
+        Pre_true={}
+        Pre_false={}
+        for qid, pred in pred_all.items():
+            Pre_true[qid] = pred
+            Pre_false[qid] = 1 - pred
+        w_ij_matrix={}
+        for i ,_ in pred_all.items():
+            w_ij_matrix[i] = {}
+            for j,_ in pred_all.items(): 
+                w_ij_matrix[i][j] = 0
+        for i,_ in pred_all.items():
+            for j,_ in pred_all.items():
+                criterion_true_1 = nn.BCELoss()  # Binary Cross-Entropy Loss for loss(predict_true, 1)
+                criterion_false_1 = nn.BCELoss()  # Binary Cross-Entropy Loss for loss(predict_false, 1)
+                criterion_true_0 = nn.BCELoss()  # Binary Cross-Entropy Loss for loss(predict_true, 0)
+                criterion_false_0 = nn.BCELoss()  # Binary Cross-Entropy Loss for loss(predict_false, 0)
+                tensor_11=torch.tensor(Pre_true[i],requires_grad=True)
+                tensor_12=torch.tensor(Pre_true[j],requires_grad=True)
+                loss_true_1 = criterion_true_1(tensor_11, torch.tensor(1.0))
+                loss_false_1 = criterion_false_1(tensor_11, torch.tensor(0.0))
+                loss_true_0 = criterion_true_0(tensor_12, torch.tensor(1.0))
+                loss_false_0 = criterion_false_0(tensor_12, torch.tensor(0.0))
+                loss_true_1.backward()
+                grad_true_1 = tensor_11.grad.clone()
+                tensor_11.grad.zero_()
+                loss_false_1.backward()
+                grad_false_1 = tensor_11.grad.clone()
+                tensor_11.grad.zero_()
+                loss_true_0.backward()
+                grad_true_0 = tensor_12.grad.clone()
+                tensor_12.grad.zero_()
+                loss_false_0.backward()
+                grad_false_0 = tensor_12.grad.clone()
+                tensor_12.grad.zero_()
+                diff_norm_00 = math.fabs(grad_true_1 - grad_true_0)
+                diff_norm_01 = math.fabs(grad_true_1 - grad_false_0)
+                diff_norm_10 = math.fabs(grad_false_1 - grad_true_0)
+                diff_norm_11 = math.fabs(grad_false_1 - grad_false_0)
+                Expect = Pre_false[i]*Pre_false[j]*diff_norm_00 + Pre_false[i]*Pre_true[j]*diff_norm_01 +Pre_true[i]*Pre_false[j]*diff_norm_10 + Pre_true[i]*Pre_true[j]*diff_norm_11
+                w_ij_matrix[i][j] = d - Expect
+        return w_ij_matrix
+
+    def F_s_func(self,S_set,w_ij_matrix):
+        res = 0.0
+        for w_i in w_ij_matrix:
+            if(w_i not in S_set):
+                mx = float('-inf')
+                for j in S_set:
+                    if w_ij_matrix[w_i][j] > mx:
+                        mx = w_ij_matrix[w_i][j]
+                res +=mx
+                
+        return res
+
+    def delta_q_S_t(self, question_id, pred_all,S_set,sampled_elements):
+        """ get BECAT Questions weights delta
+        Args:
+            student_id: int, student id
+            question_id: int, question id
+        Returns:
+            v: float, Each weight information
+        """     
+        
+        Sp_set = list(S_set)
+        b_array = np.array(Sp_set)
+        sampled_elements = np.concatenate((sampled_elements, b_array), axis=0)
+        if question_id not in sampled_elements:
+            sampled_elements = np.append(sampled_elements, question_id)
+        sampled_dict = {key: value for key, value in pred_all.items() if key in sampled_elements}
+        
+        w_ij_matrix = self.get_BE_weights(sampled_dict)
+        
+        F_s = self.F_s_func(Sp_set,w_ij_matrix)
+        
+        Sp_set.append(question_id)
+        F_sp =self.F_s_func(Sp_set,w_ij_matrix)
+        return F_sp - F_s

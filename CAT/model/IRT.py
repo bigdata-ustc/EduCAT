@@ -6,14 +6,15 @@ import logging
 import torch
 import torch.nn as nn
 import numpy as np
+import math
 import torch.utils.data as data
 from math import exp as exp
 from sklearn.metrics import roc_auc_score
 from scipy import integrate
-
+import time
 from CAT.model.abstract_model import AbstractModel
 from CAT.dataset import AdapTestDataset, TrainDataset, Dataset
-
+from sklearn.metrics import accuracy_score
 
 class IRT(nn.Module):
     def __init__(self, num_students, num_questions, num_dim):
@@ -157,10 +158,16 @@ class IRTModel(AbstractModel):
         real = np.array(real)
         pred = np.array(pred)
         auc = roc_auc_score(real, pred)
+        
+        # Calculate accuracy
+        threshold = 0.5  # You may adjust the threshold based on your use case
+        binary_pred = (pred >= threshold).astype(int)
+        acc = accuracy_score(real, binary_pred)
 
         return {
             'auc': auc,
             'cov': cov,
+            'acc': acc
         }
 
     def get_pred(self, adaptest_data: AdapTestDataset):
@@ -277,6 +284,86 @@ class IRTModel(AbstractModel):
         q = 1 - pred
         fisher_info = (q*pred*(alpha * alpha.T)).numpy()
         return fisher_info
+    def IRT_derivate(self,pred_all):
+
+        new_predictions = {}
+        for sid, qid_dict in pred_all.items():
+            new_predictions[sid] = {}
+            for qid, pred in qid_dict.items():
+                new_pred = pred * (1 - pred)
+                new_predictions[sid][qid] = new_pred
+
+    def bce_loss_derivative(self,pred, target):
+        derivative = (pred - target) / (pred * (1 - pred))
+        return derivative
+    def get_BE_weights(self, pred_all):
+        """
+        Returns:
+            predictions, dict[sid][qid]
+        """
+        d = 100
+        Pre_true={}
+        Pre_false={}
+        Der={}
+        for qid, pred in pred_all.items():
+            Pre_true[qid] = pred
+            Pre_false[qid] = 1 - pred
+            Der[qid] =pred*(1-pred)*self.get_alpha(qid)
+        w_ij_matrix={}
+        for i ,_ in pred_all.items():
+            w_ij_matrix[i] = {}
+            for j,_ in pred_all.items(): 
+                w_ij_matrix[i][j] = 0
+        for i,_ in pred_all.items():
+            for j,_ in pred_all.items():
+                gradients_theta1 = self.bce_loss_derivative(Pre_true[i],1.0) * Der[i]
+                gradients_theta2 = self.bce_loss_derivative(Pre_true[i],0.0) * Der[i]
+                gradients_theta3 = self.bce_loss_derivative(Pre_true[j],1.0) * Der[j]
+                gradients_theta4 = self.bce_loss_derivative(Pre_true[j],0.0) * Der[j]
+                diff_norm_00 = math.fabs(gradients_theta1 - gradients_theta3)
+                diff_norm_01 = math.fabs(gradients_theta1 - gradients_theta4)
+                diff_norm_10 = math.fabs(gradients_theta2 - gradients_theta3)
+                diff_norm_11 = math.fabs(gradients_theta2 - gradients_theta4)
+                Expect = Pre_false[i]*Pre_false[j]*diff_norm_00 + Pre_false[i]*Pre_true[j]*diff_norm_01 +Pre_true[i]*Pre_false[j]*diff_norm_10 + Pre_true[i]*Pre_true[j]*diff_norm_11
+                w_ij_matrix[i][j] = d - Expect
+        return w_ij_matrix
+
+    def F_s_func(self,S_set,w_ij_matrix):
+        res = 0.0
+        for w_i in w_ij_matrix:
+            if(w_i not in S_set):
+                mx = float('-inf')
+                for j in S_set:
+                    if w_ij_matrix[w_i][j] > mx:
+                        mx = w_ij_matrix[w_i][j]
+                res +=mx
+                
+        return res
+
+    def delta_q_S_t(self, question_id, pred_all,S_set,sampled_elements):
+        """ get BECAT Questions weights delta
+        Args:
+            student_id: int, student id
+            question_id: int, question id
+        Returns:
+            v: float, Each weight information
+        """     
+        
+        Sp_set = list(S_set)
+        b_array = np.array(Sp_set)
+        sampled_elements = np.concatenate((sampled_elements, b_array), axis=0)
+        if question_id not in sampled_elements:
+            sampled_elements = np.append(sampled_elements, question_id)
+        sampled_dict = {key: value for key, value in pred_all.items() if key in sampled_elements}
+        
+        w_ij_matrix = self.get_BE_weights(sampled_dict)
+        
+        F_s = self.F_s_func(Sp_set,w_ij_matrix)
+        
+        Sp_set.append(question_id)
+        F_sp =self.F_s_func(Sp_set,w_ij_matrix)
+        return F_sp - F_s
+
     
     def expected_model_change(self, sid: int, qid: int, adaptest_data: AdapTestDataset, pred_all: dict):
         """ get expected model change
