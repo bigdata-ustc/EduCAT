@@ -10,7 +10,6 @@ Computerized Adaptive Testing Package, including the following models and strate
   * D-Optimality (D-opt) strategy
   * Multivariate Kullback-Leibler Information (MKLI) strategy
   * Model-Agnostic Adaptive Testing (MAAT) strategy
-  * Bounded Ability Estimation Adaptive Testing (BECAT) strategy
 * Neural Cognitive Diagnosis (NCD)
   * Model-Agnostic Adaptive Testing (MAAT) strategy
   * Bounded Ability Estimation Adaptive Testing (BECAT) strategy 
