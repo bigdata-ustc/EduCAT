@@ -284,22 +284,24 @@ class IRTModel(AbstractModel):
         q = 1 - pred
         fisher_info = (q*pred*(alpha * alpha.T)).numpy()
         return fisher_info
-    def IRT_derivate(self,pred_all):
-
-        new_predictions = {}
-        for sid, qid_dict in pred_all.items():
-            new_predictions[sid] = {}
-            for qid, pred in qid_dict.items():
-                new_pred = pred * (1 - pred)
-                new_predictions[sid][qid] = new_pred
-
+    
     def bce_loss_derivative(self,pred, target):
+        """ get bce_loss_derivative
+        Args:
+            pred: float,
+            target: int,
+        Returns:
+            the derivative of bce_loss
+        """
         derivative = (pred - target) / (pred * (1 - pred))
         return derivative
+    
     def get_BE_weights(self, pred_all):
-        """
+        """ get BE matrix
+        Args:
+            pred_all: dict, the questions you want to sample and their probability
         Returns:
-            predictions, dict[sid][qid]
+            the BE matrix weights
         """
         d = 100
         Pre_true={}
@@ -329,6 +331,13 @@ class IRTModel(AbstractModel):
         return w_ij_matrix
 
     def F_s_func(self,S_set,w_ij_matrix):
+        """ get F_s of the questions have been chosen
+        Args:
+            S_set:list , the questions have been chosen
+            w_ij_matrix: dict, the weight matrix
+        Returns:
+            the F_s of the chosen questions
+        """
         res = 0.0
         for w_i in w_ij_matrix:
             if(w_i not in S_set):
@@ -336,17 +345,18 @@ class IRTModel(AbstractModel):
                 for j in S_set:
                     if w_ij_matrix[w_i][j] > mx:
                         mx = w_ij_matrix[w_i][j]
-                res +=mx
-                
+                res +=mx 
         return res
 
     def delta_q_S_t(self, question_id, pred_all,S_set,sampled_elements):
         """ get BECAT Questions weights delta
         Args:
-            student_id: int, student id
             question_id: int, question id
+            pred_all:dict, the untest questions and their probability
+            S_set:dict, chosen questions
+            sampled_elements:nparray, sampled set from untest questions
         Returns:
-            v: float, Each weight information
+            delta_q: float, delta_q of questions id
         """     
         
         Sp_set = list(S_set)
@@ -364,7 +374,6 @@ class IRTModel(AbstractModel):
         F_sp =self.F_s_func(Sp_set,w_ij_matrix)
         return F_sp - F_s
 
-    
     def expected_model_change(self, sid: int, qid: int, adaptest_data: AdapTestDataset, pred_all: dict):
         """ get expected model change
         Args:
