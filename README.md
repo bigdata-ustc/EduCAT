@@ -6,10 +6,14 @@ Computerized Adaptive Testing Package, including the following models and strate
   * Kullback-Leibler Information (KLI) strategy
   * Model-Agnostic Adaptive Testing (MAAT) strategy
   * Bounded Ability Estimation Adaptive Testing (BECAT) strategy 
+  * Bilevel Optimization-Based Computerized Adaptive Testing (BOBCAT) strategy 
+  * Neural Computerized Adaptive Testing (NCAT) strategy 
 * Multidimensional Item Response Theory (MIRT)
   * D-Optimality (D-opt) strategy
   * Multivariate Kullback-Leibler Information (MKLI) strategy
   * Model-Agnostic Adaptive Testing (MAAT) strategy
+  * Bilevel Optimization-Based Computerized Adaptive Testing (BOBCAT) strategy 
+  * Neural Computerized Adaptive Testing (NCAT) strategy 
 * Neural Cognitive Diagnosis (NCD)
   * Model-Agnostic Adaptive Testing (MAAT) strategy
   * Bounded Ability Estimation Adaptive Testing (BECAT) strategy 
