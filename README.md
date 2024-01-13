@@ -8,6 +8,7 @@ Computerized Adaptive Testing Package, including the following models and strate
   * Bounded Ability Estimation Adaptive Testing (BECAT) strategy 
   * Bilevel Optimization-Based Computerized Adaptive Testing (BOBCAT) strategy 
   * Neural Computerized Adaptive Testing (NCAT) strategy 
+
 * Multidimensional Item Response Theory (MIRT)
   * D-Optimality (D-opt) strategy
   * Multivariate Kullback-Leibler Information (MKLI) strategy
