@@ -11,7 +11,7 @@ import copy as cp
 import numpy as np
 from scipy.optimize import minimize
 from CAT.dataset import AdapTestDataset,Dataset
-from CAT.model.IRT import IRT
+from CAT.model.IRT import IRT,IRTModel
 
 SavedAction = namedtuple('SavedAction', ['log_prob', 'value'])
 
@@ -300,72 +300,6 @@ class PositionwiseFeedForward(nn.Module):
     def forward(self, x):
         return self.w_2(self.dropout(F.relu(self.w_1(x))))
     
-class CDM(nn.Module):
-    def __init__(self, data: Dataset,config):
-        # num_dim: IRT if num_dim == 1 else MIRT
-        super().__init__()
-        self.model = IRT(data.num_students, data.num_questions, self.config['num_dim'])
-    def adaptest_update(self, adaptest_data: AdapTestDataset):
-        """
-        Update CDM with tested data
-        """
-        lr = self.config['learning_rate']
-        batch_size = self.config['batch_size']
-        epochs = self.config['num_epochs']
-        device = self.config['device']
-        optimizer = torch.optim.Adam(self.theta.parameters(), lr=lr)
-
-        tested_dataset = adaptest_data.get_tested_dataset(last=True)
-        dataloader = torch.utils.data.DataLoader(tested_dataset, batch_size=batch_size, shuffle=True)
-        ls = 0.0
-        for ep in range(1, epochs + 1):
-            
-            loss = 0.0
-            for cnt, (student_ids, question_ids, _, labels) in enumerate(dataloader):
-                student_ids = student_ids.to(device)
-                question_ids = question_ids.to(device)
-                labels = labels.to(device).float()
-                pred = self.forward(student_ids, question_ids).view(-1)
-                bz_loss = self._loss_function(pred, labels)
-                optimizer.zero_grad()
-                bz_loss.backward(retain_graph=True)
-                optimizer.step()
-                loss += bz_loss.data.float()
-            ls = ls + loss
-        return ls/(epochs)
-    def _loss_function(self, pred, real):
-        return -(real * torch.log(0.0001 + pred) + (1 - real) * torch.log(1.0001 - pred)).mean()
-    def evaluate(self, adaptest_data: AdapTestDataset):
-        data = adaptest_data.data
-        concept_map = adaptest_data.concept_map
-        device = self.config['device']
-
-        real = []
-        pred = []
-        with torch.no_grad():
-            self.eval()
-            for sid in data:
-                student_ids = [sid] * len(data[sid])
-                question_ids = list(data[sid].keys())
-                real += [data[sid][qid] for qid in question_ids]
-                student_ids = torch.LongTensor(student_ids).to(device)
-                question_ids = torch.LongTensor(question_ids).to(device)
-                output = self.forward(student_ids, question_ids).view(-1)
-                pred += output.tolist()
-            self.train()
-
-        real = np.array(real)
-        real = np.where(real < 0.5, 0.0, 1.0)
-        pred = np.array(pred)
-        auc = roc_auc_score(real, pred)
-        
-        # Calculate accuracy
-        threshold = 0.5  # You may adjust the threshold based on your use case
-        binary_pred = (pred >= threshold).astype(int)
-        acc = accuracy_score(real, binary_pred)
-
-        return auc,acc
-    
 class env:
     def __init__(self,data,concept_map,config,T):
         self.config = config
@@ -432,7 +366,8 @@ class env:
     
     def load_CDM(self,name,data,pth_path,config):
         if name == 'IRT':
-            model = CDM(data,config)
+            model = IRTModel(**config)
+            model.init_model(data)
             model.load_state_dict(torch.load(pth_path), strict=False)
             model.to(self.config['device'])
         return model ,data.data

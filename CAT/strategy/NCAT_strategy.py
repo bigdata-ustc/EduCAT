@@ -5,7 +5,7 @@ from sklearn.metrics import accuracy_score
 from collections import namedtuple
 from scipy.optimize import minimize
 from CAT.strategy.abstract_strategy import AbstractStrategy
-from CAT.model.NCAT import NCATModel
+from CAT.strategy.NCAT_nn.NCAT import NCATModel
 
 class NCATs(AbstractStrategy):
 
@@ -21,7 +21,7 @@ class NCATs(AbstractStrategy):
         for sid in range(adaptest_data.num_students):
             NCATdata = adaptest_data
             model = NCATModel(NCATdata,concept_map,config,test_length)
-            THRESHOLD = config['THRESHOLD']
-            model.ncat_policy(sid,THRESHOLD,used_actions)
+            threshold = config['THRESHOLD']
+            model.ncat_policy(sid,threshold,used_actions)
 
         return used_actions
