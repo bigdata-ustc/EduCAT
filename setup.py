@@ -6,6 +6,8 @@ setup(
     author='Yuting Ning',
     author_email='ningyt@mail.ustc.edu.cn',
     packages=find_packages(),
+    long_description_content_type="text/markdown",
+    long_description=README,
     url='https://github.com/bigdata-ustc/CAT',
     install_requires=[
         'torch',
