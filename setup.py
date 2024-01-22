@@ -3,7 +3,7 @@ from setuptools import setup, find_packages
 setup(
     name='CAT',
     version='0.0.1',
-    author='nnnyt',
+    author='Yuting Ning',
     author_email='ningyt@mail.ustc.edu.cn',
     packages=find_packages(),
     url='https://github.com/bigdata-ustc/CAT',
@@ -18,5 +18,6 @@ setup(
     },
     classifiers=[
         "Programming Language :: Python :: 3",
-    ]
+    ],
+    long_description=open('README.md').read()
 )
