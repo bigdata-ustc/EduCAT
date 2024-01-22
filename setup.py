@@ -6,6 +6,7 @@ setup(
     author='Yuting Ning',
     author_email='ningyt@mail.ustc.edu.cn',
     packages=find_packages(),
+    description=""" A CAT Framework """,
     long_description_content_type="text/markdown",
     long_description=README,
     url='https://github.com/bigdata-ustc/CAT',
@@ -21,5 +22,4 @@ setup(
     classifiers=[
         "Programming Language :: Python :: 3",
     ],
-    long_description=open('README.md').read(),
 )
