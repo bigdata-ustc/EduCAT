@@ -19,5 +19,5 @@ setup(
     classifiers=[
         "Programming Language :: Python :: 3",
     ],
-    long_description=open('README.md').read()
+    long_description=open('README.md').read(),
 )
