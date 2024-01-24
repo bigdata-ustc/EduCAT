@@ -1,7 +1,7 @@
 from setuptools import setup, find_packages
 
 setup(
-    name='CAT',
+    name='EduCAT',
     version='0.0.1',
     author='Yuting Ning',
     author_email='ningyt@mail.ustc.edu.cn',
