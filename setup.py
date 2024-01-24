@@ -8,7 +8,7 @@ setup(
     packages=find_packages(),
     description=""" A CAT Framework """,
     long_description_content_type="text/markdown",
-    long_description=README,
+    long_description=open('README.md').read(),
     url='https://github.com/bigdata-ustc/CAT',
     install_requires=[
         'torch',
