@@ -45,12 +45,15 @@ It is worth noting that the data needs to be processed before it can be used. In
 
 To make use of our work, you should do these below:
 
-**Git and install by `pip`**
+Git and install by `pip`
 
 ```
 pip install -e .
 ```
-
+or install from `pypi`
+```
+pip install EduCAT
+```
 
 ## Quick Start
 
