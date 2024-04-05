@@ -147,3 +147,18 @@ Neural Cognitive Diagnosis (NCD) is a cutting-edge framework designed to tackle 
 - Applications of item response theory to practi cal testing problems [Paper](https://www.semanticscholar.org/paper/Applications-of-Item-Response-Theory-To-Practical-Lord/d0476004085419b8a44953f5cdab11442c12ffaa)
 - An adaptive testing system for supporting versatile educational assessment [Paper](https://www.sciencedirect.com/science/article/pii/S0360131508000973)
 
+## Citation
+
+If this repository is helpful for you, please cite our work
+
+```
+@misc{liu2024survey,
+      title={Survey of Computerized Adaptive Testing: A Machine Learning Perspective}, 
+      author={Qi Liu and Yan Zhuang and Haoyang Bi and Zhenya Huang and Weizhe Huang and Jiatong Li and Junhao Yu and Zirui Liu and Zirui Hu and Yuting Hong and Zachary A. Pardos and Haiping Ma and Mengxiao Zhu and Shijin Wang and Enhong Chen},
+      year={2024},
+      eprint={2404.00712},
+      archivePrefix={arXiv},
+      primaryClass={cs.LG}
+}
+```
+
