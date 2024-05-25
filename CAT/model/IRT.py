@@ -13,7 +13,7 @@ from CAT.model.abstract_model import AbstractModel
 from CAT.dataset import AdapTestDataset, TrainDataset, Dataset
 from sklearn.metrics import accuracy_score
 from collections import namedtuple
-from utils import StraightThrough
+from .utils import StraightThrough
 SavedAction = namedtuple('SavedAction', ['log_prob', 'value'])
 
 class IRT(nn.Module):
@@ -99,7 +99,7 @@ class IRTModel(AbstractModel):
         self.model.load_state_dict(torch.load(path), strict=False)
         self.model.to(self.config['device'])
 
-    def adaptest_update(self, adaptest_data: AdapTestDataset):
+    def adaptest_update(self, adaptest_data: AdapTestDataset,sid=None):
         """
         Update CDM with tested data
         """
@@ -109,9 +109,8 @@ class IRTModel(AbstractModel):
         device = self.config['device']
         optimizer = torch.optim.Adam(self.model.theta.parameters(), lr=lr)
 
-        tested_dataset = adaptest_data.get_tested_dataset(last=True)
+        tested_dataset = adaptest_data.get_tested_dataset(last=True,ssid=sid)
         dataloader = torch.utils.data.DataLoader(tested_dataset, batch_size=batch_size, shuffle=True)
-
         for ep in range(1, epochs + 1):
             loss = 0.0
             log_steps = 100
@@ -127,7 +126,13 @@ class IRTModel(AbstractModel):
                 loss += bz_loss.data.float()
                 # if cnt % log_steps == 0:
                     # print('Epoch [{}] Batch [{}]: loss={:.3f}'.format(ep, cnt, loss / cnt))
-    
+        return loss
+    def one_student_update(self, adaptest_data: AdapTestDataset):
+        lr = self.config['learning_rate']
+        batch_size = self.config['batch_size']
+        epochs = self.config['num_epochs']
+        device = self.config['device']
+        optimizer = torch.optim.Adam(self.model.theta.parameters(), lr=lr)
     def evaluate(self, adaptest_data: AdapTestDataset):
         data = adaptest_data.data
         concept_map = adaptest_data.concept_map

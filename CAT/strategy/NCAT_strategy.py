@@ -16,12 +16,19 @@ class NCATs(AbstractStrategy):
     def name(self):
         return 'NCAT'
 
-    def adaptest_select(self,  adaptest_data: AdapTestDataset,concept_map,config,test_length):
-        used_actions = []
+    def adaptest_select(self, adaptest_data: AdapTestDataset,concept_map,config,test_length):
+        selection = {}
+        NCATdata = adaptest_data
+        model = NCATModel(NCATdata,concept_map,config,test_length)
+        threshold = config['THRESHOLD']
         for sid in range(adaptest_data.num_students):
-            NCATdata = adaptest_data
-            model = NCATModel(NCATdata,concept_map,config,test_length)
-            threshold = config['THRESHOLD']
-            model.ncat_policy(sid,threshold,used_actions)
-
-        return used_actions
+            print(str(sid+1)+'/'+str(adaptest_data.num_students))
+            used_actions = []
+            model.ncat_policy(sid,threshold,used_actions,type="training",epoch=100)
+        NCATdata.reset()
+        for sid in range(adaptest_data.num_students):
+            used_actions = []
+            model.ncat_policy(sid,threshold,used_actions,type="testing",epoch=0)
+            selection[sid] = used_actions
+        NCATdata.reset()
+        return selection

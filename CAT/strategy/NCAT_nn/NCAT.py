@@ -12,6 +12,7 @@ import numpy as np
 from scipy.optimize import minimize
 from CAT.dataset import AdapTestDataset,Dataset
 from CAT.model.IRT import IRT,IRTModel
+import os
 
 SavedAction = namedtuple('SavedAction', ['log_prob', 'value'])
 
@@ -44,7 +45,7 @@ class NCAT(nn.Module):
             n_heads: number of heads in multi-headed attention
             d_ff : dimension for fully conntected net inside the basic block
         """
-        self.device = torch.device('cuda')
+        self.device = torch.device('cpu')
         self.pad = pad
         self.n_question = n_question
         self.dropout = dropout
@@ -134,7 +135,7 @@ class NCAT(nn.Module):
     def create_model(cls, config):
         model = cls(config.item_num, config.latent_factor, config.num_blocks,
                  True, config.dropout_rate, policy_fc_dim=512, n_heads=config.num_heads, d_ff=2048,  l2=1e-5, separate_qa=None, pad=0)
-        return model.to(torch.device('cuda'))
+        return model.to(torch.device('cpu'))
 
 
 def mask(src, s_len):
@@ -309,12 +310,12 @@ class env:
         self.users = {}
         self.utypes = {}
         #self.args = args
-        self.device = torch.device('cuda')
+        self.device = torch.device('cpu')
         self.rates, self._item_num, self.know_map = self.load_data(data,concept_map)
         self.tsdata=data
         self.setup_train_test()
         self.sup_rates, self.query_rates = self.split_data(ratio=0.5)
-        pth_path='CDM.pt'
+        pth_path='../ckpt/irt.pt'
         name = 'IRT'
         self.model, self.dataset = self.load_CDM(name,data,pth_path,config)
         #print(self.model)
@@ -368,8 +369,8 @@ class env:
         if name == 'IRT':
             model = IRTModel(**config)
             model.init_model(data)
-            model.load_state_dict(torch.load(pth_path), strict=False)
-            model.to(self.config['device'])
+            model.adaptest_load(pth_path)
+            #model.to(self.config['device'])
         return model ,data.data
     
     def step(self, action,sid):
@@ -389,10 +390,13 @@ class env:
 
     def reward(self, action,sid):
         items = [state[0] for state in self.state[1]] + [action]
+        
         correct = [self.rates[self.state[0][0]][it] for it in items]
         self.tsdata.apply_selection(sid, action)
-        loss = self.model.adaptest_update(self.tsdata)
-        acc,auc=self.model.evaluate(self.tsdata)
+        loss = self.model.adaptest_update(self.tsdata,sid)
+        result=self.model.evaluate(self.tsdata)
+        auc = result['auc']
+        acc = result['acc']
         return -loss, acc, auc, correct[-1]
 
     def precision(self, episode):
@@ -455,13 +459,15 @@ class NCATModel():
         self.config = config
         self.model = None
         self.env = env(data=NCATdata,concept_map=concept_map,config=config,T=test_length)
-        
+        self.memory = []
         self.item_num =self.env.item_num
         self.user_num = self.env.user_num
         self.device = config['device']
         self.fa = NCAT(n_question=NCATdata.num_questions+1).to(self.device)
-        
-    def ncat_policy(self,sid,THRESHOLD,used_actions):
+        self.memory_size = 50000
+        self.tau = 0
+
+    def ncat_policy(self,sid,THRESHOLD,used_actions,type,epoch):
         actions = {}
         rwds = 0
         done = False
@@ -475,7 +481,7 @@ class NCATModel():
             data["uid"] = torch.tensor(data["uid"], device=self.device)
             policy = self.fa.predict(data)[0]
             if type == "training":
-                if np.random.random()<5*THRESHOLD/(THRESHOLD+self.tau): policy = np.random.uniform(0,1,(self.args.item_num,))
+                if np.random.random()<5*THRESHOLD/(THRESHOLD+self.tau): policy = np.random.uniform(0,1,(self.item_num,))
             for item in actions: policy[item] = -np.inf
             for item in range(self.item_num):
                 if item not in self.env.candidate_items:
@@ -490,6 +496,13 @@ class NCATModel():
             rwds += rwd
             state = state_next
         used_actions.extend(list(actions.keys()))
+        if type == "training":
+            if len(self.memory) >= self.config['batch_size']:
+                self.memory = self.memory[-self.memory_size:]
+                batch = [self.memory[item] for item in np.random.choice(range(len(self.memory)),(self.args.batch,))]
+                data = self.convert_batch2dict(batch,epoch)
+                loss = self.fa.optimize_model(data, self.args.learning_rate)
+                self.tau += 5
         return 
     
     def convert_batch2dict(self, batch, epoch):

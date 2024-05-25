@@ -60,7 +60,7 @@ class AdapTestDataset(Dataset):
     def untested(self):
         return self._untested
 
-    def get_tested_dataset(self, last=False):
+    def get_tested_dataset(self, last=False,ssid=None):
         """
         Get tested data for training
         Args: 
@@ -68,13 +68,28 @@ class AdapTestDataset(Dataset):
         Returns:
             TrainDataset
         """
-        triplets = []
-        for sid, qids in self._tested.items():
-            if last:
-                qid = qids[-1]
-                triplets.append((sid, qid, self.data[sid][qid]))
-            else:
-                for qid in qids:
+        if ssid==None:
+            triplets = []
+            for sid, qids in self._tested.items():
+                if last:
+                    qid = qids[-1]
+                
                     triplets.append((sid, qid, self.data[sid][qid]))
-        return TrainDataset(triplets, self.concept_map,
-                            self.num_students, self.num_questions, self.num_concepts)
+                else:
+                    for qid in qids:
+                        triplets.append((sid, qid, self.data[sid][qid]))
+            return TrainDataset(triplets, self.concept_map,
+                                self.num_students, self.num_questions, self.num_concepts)
+        else:
+            triplets = []
+            for sid, qids in self._tested.items():
+                if ssid == sid:
+                    if last:
+                        qid = qids[-1]
+                    
+                        triplets.append((sid, qid, self.data[sid][qid]))
+                    else:
+                        for qid in qids:
+                            triplets.append((sid, qid, self.data[sid][qid]))
+            return TrainDataset(triplets, self.concept_map,
+                                self.num_students, self.num_questions, self.num_concepts)
